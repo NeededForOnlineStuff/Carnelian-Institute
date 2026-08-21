@@ -27,7 +27,7 @@
      Buch aussieht und sich nie in der Größe verändert. */
   .stage{
     position:relative;
-    height:min(70vw, 460px);
+    width:min(92vw, 640px);
     display:flex;
     align-items:stretch;
     gap:0;
@@ -36,12 +36,13 @@
 
   /* Jeder Slot ist fest an seiner Position (links / rechts vom Spine) und
      ändert nie seine Größe oder Position - nur die Seiten DARIN animieren.
-     aspect-ratio bestimmt das Format jeder einzelnen Seite: 3/4 = klassisches
-     Buchformat (höher als breit). Für quadratische Seiten hier einfach
-     wieder "1 / 1" eintragen. */
+     WICHTIG für sauberes Skalieren: Die Breite ergibt sich aus der Bühnen-
+     breite (die selbst nie größer als der Container werden kann), die Höhe
+     folgt automatisch daraus über aspect-ratio - so wird nie seitlich
+     etwas abgeschnitten, egal wie klein der verfügbare Platz ist. */
   .slot{
     position:relative;
-    height:100%;
+    width: calc(50% - 5px);
     aspect-ratio: 3 / 4;
     flex-shrink:0;
   }
@@ -421,7 +422,7 @@
   var lastIndex = PAGES.length - 1;
   var stateIndex = 0;
   var animating = false;
-  var DURATION = 350;
+  var DURATION = 450;
   var SHIFT_DELAY = 10; // Zeitversatz zwischen Umblättern und Zentrierungs-Verschiebung (ms)
 
   function setZ(el, z){ el.style.zIndex = z; }
