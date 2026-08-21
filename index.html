@@ -422,6 +422,7 @@
   var stateIndex = 0;
   var animating = false;
   var DURATION = 450;
+  var SHIFT_DELAY = 300; // Zeitversatz zwischen Umblättern und Zentrierungs-Verschiebung (ms)
 
   function setZ(el, z){ el.style.zIndex = z; }
 
@@ -505,7 +506,6 @@
   function goForward(){
     stage.classList.add('is-animating');
     var k = stateIndex;
-    updateStageShift(k + 1);
     // RECHTER SLOT: aktuelle Seite (Index k) schrumpft wirklich weg und
     // gibt damit die bereits vorhandene, unveränderte nächste Seite
     // (Index k+1) frei - die war die ganze Zeit schon da.
@@ -534,15 +534,21 @@
       assignZ(rightPages, stateIndex, -1);
       setDots(stateIndex);
       updateInteractivity();
-      stage.classList.remove('is-animating');
-      animating = false;
+      // Erst 500ms NACH dem abgeschlossenen Umblättern verschiebt sich die
+      // Bühne zur neuen Zentrierung (zeitversetzt, nicht gleichzeitig).
+      setTimeout(function(){
+        updateStageShift(stateIndex);
+        setTimeout(function(){
+          stage.classList.remove('is-animating');
+          animating = false;
+        }, DURATION);
+      }, SHIFT_DELAY);
     }, DURATION);
   }
 
   function goBackward(){
     stage.classList.add('is-animating');
     var k = stateIndex;
-    updateStageShift(k - 1);
     // RECHTER SLOT: die vorherige Seite (Index k-1) wächst wirklich wieder
     // hervor (deckt die aktuelle Seite dabei einfach zu - die bleibt
     // unangetastet im Hintergrund liegen, wie schon vorher).
@@ -570,8 +576,15 @@
       assignZ(rightPages, stateIndex, -1);
       setDots(stateIndex);
       updateInteractivity();
-      stage.classList.remove('is-animating');
-      animating = false;
+      // Erst 500ms NACH dem abgeschlossenen Umblättern verschiebt sich die
+      // Bühne zur neuen Zentrierung (zeitversetzt, nicht gleichzeitig).
+      setTimeout(function(){
+        updateStageShift(stateIndex);
+        setTimeout(function(){
+          stage.classList.remove('is-animating');
+          animating = false;
+        }, DURATION);
+      }, SHIFT_DELAY);
     }, DURATION);
   }
 
