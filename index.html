@@ -21,71 +21,160 @@
     background:transparent;
     font-family: 'Georgia', 'Times New Roman', serif;
   }
+
+  /* Die Bühne hat eine feste Höhe; die Breite ergibt sich automatisch aus
+     zwei quadratischen Seiten + Spine, damit das Format IMMER wie ein
+     Buch aussieht und sich nie in der Größe verändert. */
   .stage{
     position:relative;
-    width:min(90vw, 600px);
-    height:min(45vw, 300px);
-  }
-  .view{
-    position:absolute;
-    top:0; left:0; right:0; bottom:0;
+    height:min(44vw, 600px);
     display:flex;
-    justify-content:center;
     align-items:stretch;
-    gap:6px;
-    opacity:0;
+    gap:0;
+  }
+
+  /* Jeder Slot ist fest an seiner Position (links / rechts vom Spine) und
+     ändert nie seine Größe oder Position - nur die Seiten DARIN animieren. */
+  .slot{
+    position:relative;
+    height:100%;
+    aspect-ratio: 3 / 4;
+    flex-shrink:0;
+  }
+  .slot-left{ margin-right:5px; }
+  .slot-right{ margin-left:5px; }
+
+  .spine{
+    width: 10px;
+    align-self:stretch;
+    margin: 6% 0;
+    background: linear-gradient(90deg, rgba(0,0,0,0.25), rgba(0,0,0,0.05), rgba(0,0,0,0.25));
     pointer-events:none;
-    transform:scale(0.92);
-    transition: opacity 0.45s ease, transform 0.45s ease;
+    opacity: 0;
+    transition: opacity 0.25s ease;
   }
-  .view.active{
-    opacity:1;
-    pointer-events:auto;
-    transform:scale(1);
+  .stage.show-spine .spine{ opacity: 1; }
+  .stage.is-animating .page{
+    pointer-events: none;
   }
+
   .page{
+    position:absolute;
+    inset:0;
     background: var(--page-bg);
     border: 2px solid var(--page-border);
-    border-radius: 4px;
     box-shadow: 0 10px 26px rgba(0,0,0,0.35), inset 0 0 20px rgba(0,0,0,0.05);
     display:flex;
     align-items:center;
     justify-content:center;
     cursor:pointer;
     user-select:none;
-    position:relative;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow:hidden;
     background-image:
       repeating-linear-gradient(0deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 1px, transparent 1px, transparent 26px);
+    transform: scaleX(1);
+    transition: transform 0.45s cubic-bezier(.45,.05,.35,1);
   }
-  .page:hover{
-    transform: translateY(-3px);
-    box-shadow: 0 14px 30px rgba(0,0,0,0.4);
+  .page.ghost{
+    visibility:hidden;
+    pointer-events:none;
+    box-shadow:none;
+    border-color:transparent;
   }
-  .page:active{
-    transform: translateY(-1px) scale(0.98);
+
+  /* Hintergrundbild-Ebene: liegt hinter dem Inhalt, füllt die Seite komplett
+     aus (cover), wird pro Seite individuell über PAGES[...].bg gesetzt. */
+  .page-bg{
+    position:absolute;
+    inset:0;
+    background-size: cover;
+    background-position: center;
+    z-index: 0;
   }
-  .single{
-    width: 46%;
-    aspect-ratio: 1 / 1;
+  /* Dezentes Verlaufs-Overlay über dem Bild, damit Text darüber immer
+     lesbar bleibt, egal wie hell/dunkel/bunt das Hintergrundbild ist. */
+  .page-bg::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.35) 70%, rgba(0,0,0,0.5));
   }
-  .double .page{
-    width: 46%;
-    aspect-ratio: 1 / 1;
+
+  /* Frei formatierbarer HTML-Inhalt einer Seite (Überschrift, Fließtext, ...) */
+  .page-content{
+    position:relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    padding: 12% 10%;
+    overflow: auto;
+    color: #fdf8ec;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    transition: opacity 0.16s ease;
   }
-  .double .page.left{
+  .page-content h1,
+  .page-content h2,
+  .page-content h3{
+    margin: 0 0 0.4em 0;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    line-height: 1.15;
+  }
+  .page-content h1{ font-size: clamp(1.3rem, 4.2vw, 2.1rem); letter-spacing: 1px; }
+  .page-content p{
+    margin: 0 0 0.7em 0;
+    font-family: Arial, sans-serif;
+    font-size: clamp(0.72rem, 2vw, 0.92rem);
+    line-height: 1.5;
+  }
+  /* Bilder INNERHALB des Fließtexts (z.B. <img src="..."> im content-HTML) -
+     passen sich automatisch der Seitenbreite an und bekommen einen
+     dezenten Rahmen/Schatten, damit sie sich vom Hintergrundbild abheben. */
+  .page-content img{
+    display:block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 0.4em 0 0.7em 0;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  }
+  .page-content figure{
+    margin: 0 0 0.7em 0;
+  }
+  .page-content figcaption{
+    font-size: 0.75em;
+    opacity: 0.8;
+    margin-top: 0.3em;
+    font-style: italic;
+  }
+  /* Wenn eine Seite KEIN eigenes Hintergrundbild hat, bleibt der klassische
+     Papier-Look (Buchstabe mittig, Vintage-Hintergrund) wie bisher erhalten. */
+  .page:not(.has-bg) .page-content{
+    color: var(--ink);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 0;
+  }
+
+  /* Linke Slot-Seiten sind immer an der rechten Kante (Spine) verankert,
+     rechte Slot-Seiten immer an der linken Kante (Spine) - so bleibt der
+     Spine selbst immer exakt an derselben Stelle stehen. */
+  .slot-left .page{
+    transform-origin: right center;
     border-radius: 4px 0 0 4px;
-    border-right: 1px solid rgba(58,46,31,0.35);
   }
-  .double .page.right{
+  .slot-right .page{
+    transform-origin: left center;
     border-radius: 0 4px 4px 0;
-    border-left: 1px solid rgba(58,46,31,0.35);
   }
+
   .letter{
     font-size: clamp(2rem, 6vw, 4rem);
     color: var(--ink);
     letter-spacing: 2px;
     text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+    transition: opacity 0.16s ease;
   }
   .hint{
     position:absolute;
@@ -98,17 +187,60 @@
     opacity: 0.75;
     font-family: Arial, sans-serif;
     text-transform: uppercase;
-  }
-  .spine{
-    position:absolute;
-    top:6%; bottom:6%;
-    left:50%;
-    width: 10px;
-    margin-left:-5px;
-    background: linear-gradient(90deg, rgba(0,0,0,0.25), rgba(0,0,0,0.05), rgba(0,0,0,0.25));
+    transition: opacity 0.16s ease;
+    z-index: 2;
     pointer-events:none;
-    z-index:2;
   }
+  .page.has-bg .hint{
+    color: #fdf8ec;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    opacity: 0.85;
+  }
+  .page.text-hidden .letter,
+  .page.text-hidden .hint,
+  .page.text-hidden .page-content{
+    opacity: 0;
+  }
+
+  /* Abgeknickte Ecke (Dog-Ear) */
+  .page::before,
+  .page::after{
+    content:"";
+    position:absolute;
+    width: 34px;
+    height: 34px;
+    opacity: 0;
+    transition: opacity 0.25s ease, width 0.25s ease, height 0.25s ease;
+    pointer-events:none;
+    z-index:3;
+  }
+  .slot-right .page::before{
+    right: 0; bottom: 0;
+    background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.12) 50%);
+  }
+  .slot-right .page::after{
+    right: 0; bottom: 0;
+    background: linear-gradient(135deg, transparent 50%, #e6dcc2 51%);
+    box-shadow: -2px -2px 6px rgba(0,0,0,0.25);
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  }
+  .slot-left .page::before{
+    left: 0; bottom: 0;
+    background: linear-gradient(225deg, transparent 50%, rgba(0,0,0,0.12) 50%);
+  }
+  .slot-left .page::after{
+    left: 0; bottom: 0;
+    background: linear-gradient(225deg, transparent 50%, #e6dcc2 51%);
+    box-shadow: 2px -2px 6px rgba(0,0,0,0.25);
+    clip-path: polygon(0 0, 100% 100%, 0 100%);
+  }
+  .page:hover::before,
+  .page:hover::after{
+    opacity: 1;
+    width: 46px;
+    height: 46px;
+  }
+
   .progress{
     position:fixed;
     bottom: 18px;
@@ -131,76 +263,311 @@
 </head>
 <body>
 
-<div class="stage">
+<div class="stage" id="stage">
 
-  <div class="view active" data-view="A">
-    <div class="page single" data-goto="BC">
-      <span class="letter">A</span>
-      <span class="hint">klicken zum aufschlagen</span>
-    </div>
-  </div>
+  <div class="slot slot-left" id="slot-left"></div>
 
-  <div class="view double" data-view="BC">
-    <div class="spine"></div>
-    <div class="page left" data-goto="A">
-      <span class="letter">B</span>
-      <span class="hint">zurück</span>
-    </div>
-    <div class="page right" data-goto="DE">
-      <span class="letter">C</span>
-      <span class="hint">weiter</span>
-    </div>
-  </div>
+  <div class="spine"></div>
 
-  <div class="view double" data-view="DE">
-    <div class="spine"></div>
-    <div class="page left" data-goto="BC">
-      <span class="letter">D</span>
-      <span class="hint">zurück</span>
-    </div>
-    <div class="page right" data-goto="F">
-      <span class="letter">E</span>
-      <span class="hint">weiter</span>
-    </div>
-  </div>
-
-  <div class="view" data-view="F">
-    <div class="page single" data-goto="DE">
-      <span class="letter">F</span>
-      <span class="hint">zurück</span>
-    </div>
-  </div>
+  <div class="slot slot-right" id="slot-right"></div>
 
 </div>
 
-<div class="progress">
-  <div class="dot" data-dot="A"></div>
-  <div class="dot" data-dot="BC"></div>
-  <div class="dot" data-dot="DE"></div>
-  <div class="dot" data-dot="F"></div>
-</div>
+<div class="progress" id="progress"></div>
 
 <script>
 (function(){
-  var views = document.querySelectorAll('.view');
-  var dots = document.querySelectorAll('.dot');
+  // ============================================================
+  // BUCHINHALT
+  // ------------------------------------------------------------
+  // Das ist die EINZIGE Stelle, die du bearbeiten musst, um Seiten
+  // hinzuzufügen oder zu gestalten. Jede Zeile ist eine Doppelseite
+  // (linke + rechte Seite). Die erste Zeile ist die Vorderseite (nur
+  // rechts belegt), die letzte Zeile die Rückseite (nur links belegt)
+  // - dazwischen beliebig viele echte Doppelseiten.
+  //
+  // JEDE SEITE (links wie rechts) kann statt eines simplen Buchstabens
+  // auch ein Objekt mit folgenden Eigenschaften sein:
+  //   bg:      URL eines Hintergrundbilds (optional)
+  //   content: beliebiger HTML-Code für den Text der Seite (optional)
+  //   hint:    kleiner Hinweistext unten auf der Seite (optional)
+  //
+  // UM EINE NEUE DOPPELSEITE HINZUZUFÜGEN:
+  // Kopiere eine der mittleren Zeilen und füge sie irgendwo ZWISCHEN
+  // der ersten und letzten Zeile ein. Inhalte anpassen - fertig. Die
+  // gesamte Logik (Klicks, Animation, Fortschrittspunkte, Stapel-
+  // Reihenfolge) passt sich automatisch an.
+  // ============================================================
+  var PAGES = [
+    {
+      left: null,
+      right: {
+        bg: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&q=80',
+        content: '<h1>Titel</h1><p>Dies ist ein Beispiel für Fließtext auf einer Seite mit eigenem Hintergrundbild. Der Text lässt sich hier ganz normal mit HTML formatieren - Überschriften, Absätze, <strong>fett</strong>, <em>kursiv</em> und mehr sind möglich.</p>',
+        hint: 'klicken zum aufschlagen'
+      }
+    },
+    {
+      // Beispiel: zwei kurze Kapitel-Überschriften, jeweils mit einem
+      // knappen Satz darunter statt eines langen Absatzes.
+      left: {
+        bg: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=800&q=80',
+        content: '<h2>Der Anfang</h2><p>Alles begann an einem stillen Morgen.</p>' +
+                  '<h2>Der Weg</h2><p>Niemand wusste, wohin er führen würde.</p>'
+      },
+      right: {
+        // Beispiel: Überschrift + Bild MIT Bildunterschrift + Liste.
+        // Ein Bild im Fließtext einzufügen geht ganz normal über <img src="...">
+        // - optional in ein <figure> mit <figcaption> für eine Bildunterschrift.
+        bg: 'https://images.unsplash.com/photo-1500534623283-312aade485b7?w=800&q=80',
+        content: '<h1>Wegpunkte</h1>' +
+                  '<figure>' +
+                    '<img src="https://images.unsplash.com/photo-1441716844725-09cedc13a4e7?w=600&q=80" alt="Alter Turm">' +
+                    '<figcaption>Der alte Turm am Wegesrand</figcaption>' +
+                  '</figure>' +
+                  '<ul><li>Der alte Turm</li><li>Die stille Brücke</li><li>Das verlassene Haus</li></ul>'
+      }
+    },
+    {
+      left: {
+        // Beispiel: kein eigenes Bild, nur Textfläche mit Vintage-Papier-Look.
+        content: '<h2 style="text-align:center;">Notiz</h2><p style="text-align:center;">Kein Hintergrundbild - nur reiner Text auf Papier.</p>'
+      },
+      right: {
+        // Beispiel: Zitat-Stil mit kursivem Text und Quellenangabe.
+        bg: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80',
+        content: '<h1>Ein Zitat</h1><p style="font-style:italic;">„Nicht alles, was zählt, kann gezählt werden.“</p><p style="font-size:0.8em;">— Unbekannt</p>'
+      }
+    },
+    // <<< HIER NEUE ZEILE(N) EINFÜGEN, z.B.: { left: 'X', right: 'Y' },
+    {
+      left: {
+        bg: 'https://images.unsplash.com/photo-1476820865390-c52aeebb9891?w=800&q=80',
+        content: '<h1>Ende</h1><p>Und so schließt sich der Einband - bis zur nächsten Seite.</p>'
+      },
+      right: null
+    },
+  ];
+  // ============================================================
 
-  function showView(name){
-    views.forEach(function(v){
-      v.classList.toggle('active', v.getAttribute('data-view') === name);
-    });
-    dots.forEach(function(d){
-      d.classList.toggle('on', d.getAttribute('data-dot') === name);
+  var stage = document.getElementById('stage');
+  var slotLeft = document.getElementById('slot-left');
+  var slotRight = document.getElementById('slot-right');
+  var progress = document.getElementById('progress');
+
+  // Normalisiert einen PAGES-Eintrag: ein einfacher String ("A") wird
+  // automatisch zu einem vollständigen Seiten-Objekt gemacht, damit
+  // beide Schreibweisen (kurzer Buchstabe ODER volles Objekt mit
+  // bg/content/hint) gleichzeitig funktionieren.
+  function normalize(entry, isFirst, defaultHint){
+    if(entry === null || entry === undefined) return null;
+    if(typeof entry === 'string'){
+      return { content: '<span class="letter">' + entry + '</span>', hint: defaultHint };
+    }
+    var out = {};
+    if(entry.bg) out.bg = entry.bg;
+    out.content = entry.content || '';
+    out.hint = entry.hint || defaultHint;
+    return out;
+  }
+
+  function makePage(data, side){
+    var el = document.createElement('div');
+    if(data === null){
+      el.className = 'page ghost';
+      return el;
+    }
+    el.className = 'page' + (data.bg ? ' has-bg' : '');
+    el.setAttribute('data-side', side);
+
+    if(data.bg){
+      var bgEl = document.createElement('div');
+      bgEl.className = 'page-bg';
+      bgEl.style.backgroundImage = "url('" + data.bg + "')";
+      el.appendChild(bgEl);
+    }
+
+    var contentEl = document.createElement('div');
+    contentEl.className = 'page-content';
+    contentEl.innerHTML = data.content;
+    el.appendChild(contentEl);
+
+    var hintSpan = document.createElement('span');
+    hintSpan.className = 'hint';
+    hintSpan.textContent = data.hint;
+    el.appendChild(hintSpan);
+
+    return el;
+  }
+
+  PAGES.forEach(function(p, i){
+    var isFirst = (i === 0);
+    var leftData  = normalize(p.left,  isFirst, 'zurück');
+    var rightData = normalize(p.right, isFirst, isFirst ? 'klicken zum aufschlagen' : 'weiter');
+    slotLeft.appendChild(makePage(leftData, 'left'));
+    slotRight.appendChild(makePage(rightData, 'right'));
+    var dot = document.createElement('div');
+    dot.className = 'dot';
+    progress.appendChild(dot);
+  });
+
+  var leftPages  = Array.prototype.slice.call(slotLeft.children);
+  var rightPages = Array.prototype.slice.call(slotRight.children);
+  var dots = Array.prototype.slice.call(progress.children);
+  var lastIndex = PAGES.length - 1;
+  var stateIndex = 0;
+  var animating = false;
+  var DURATION = 450;
+
+  function setZ(el, z){ el.style.zIndex = z; }
+
+  // Weist ALLEN Seiten eines Slots eindeutige, nie kollidierende z-index-Werte
+  // zu. topIdx = die gerade sichtbare/aktive Seite (immer ganz oben),
+  // secondIdx = die zweite an der aktuellen Animation beteiligte Seite.
+  // Alle übrigen Seiten bekommen niedrige, garantiert eindeutige Basiswerte,
+  // damit sich nie zwei Seiten denselben z-index teilen (das war die Ursache
+  // für das gelegentliche "Durchblitzen").
+  function assignZ(pages, topIdx, secondIdx){
+    pages.forEach(function(el, i){
+      if(i === topIdx){ setZ(el, 30); }
+      else if(i === secondIdx){ setZ(el, 20); }
+      else { setZ(el, 10 - i); }
     });
   }
 
-  document.querySelectorAll('[data-goto]').forEach(function(el){
-    el.addEventListener('click', function(){
-      showView(el.getAttribute('data-goto'));
+  function updateInteractivity(){
+    leftPages.forEach(function(el, i){
+      el.style.pointerEvents = (i === stateIndex) ? 'auto' : 'none';
     });
-  });
+    rightPages.forEach(function(el, i){
+      el.style.pointerEvents = (i === stateIndex) ? 'auto' : 'none';
+    });
+  }
 
-  showView('A');
+  function setDots(idx){
+    dots.forEach(function(d, i){
+      d.classList.toggle('on', i === idx);
+    });
+    // Spine (Buchrücken-Steg) nur sichtbar, wenn beide Seiten der aktuellen
+    // Doppelseite echte Inhalte sind (nicht bei Vorder-/Rückseite mit ghost).
+    var isRealSpread = PAGES[idx].left !== null && PAGES[idx].right !== null;
+    stage.classList.toggle('show-spine', isRealSpread);
+  }
+
+  // Ausgangszustand: nur A (Index 0) sichtbar, alles danach unsichtbar (scale 0),
+  // alles davor gibt es nicht (Index -1 existiert nicht).
+  function initSlots(){
+    leftPages.forEach(function(el, i){
+      el.style.transition = 'none';
+      el.style.transform = (i <= stateIndex) ? 'scaleX(1)' : 'scaleX(0)';
+      el.offsetHeight;
+      el.style.transition = '';
+    });
+    rightPages.forEach(function(el, i){
+      el.style.transition = 'none';
+      el.style.transform = (i >= stateIndex) ? 'scaleX(1)' : 'scaleX(0)';
+      el.offsetHeight;
+      el.style.transition = '';
+    });
+    assignZ(leftPages, stateIndex, -1);
+    assignZ(rightPages, stateIndex, -1);
+    setDots(stateIndex);
+    updateInteractivity();
+  }
+
+  function goForward(){
+    stage.classList.add('is-animating');
+    var k = stateIndex;
+    // RECHTER SLOT: aktuelle Seite (Index k) schrumpft wirklich weg und
+    // gibt damit die bereits vorhandene, unveränderte nächste Seite
+    // (Index k+1) frei - die war die ganze Zeit schon da.
+    var curR = rightPages[k];
+    var nextR = rightPages[k+1];
+    assignZ(rightPages, k, k+1);
+    curR.classList.add('text-hidden');
+    curR.style.transform = 'scaleX(0)';
+
+    // LINKER SLOT: aktuelle Seite schrumpft, während die neue Seite
+    // gleichzeitig von derselben (Spine-)Kante aus aufwächst - beide
+    // Bewegungen sind eigenständig, der Spine selbst bewegt sich nie.
+    var curL = leftPages[k];
+    var nextL = leftPages[k+1];
+    assignZ(leftPages, k, k+1);
+    curL.classList.add('text-hidden');
+    nextL.classList.remove('text-hidden');
+    curL.style.transform = 'scaleX(0)';
+    nextL.style.transform = 'scaleX(1)';
+
+    setTimeout(function(){
+      curR.classList.remove('text-hidden');
+      curL.classList.remove('text-hidden');
+      stateIndex = k+1;
+      assignZ(leftPages, stateIndex, -1);
+      assignZ(rightPages, stateIndex, -1);
+      setDots(stateIndex);
+      updateInteractivity();
+      stage.classList.remove('is-animating');
+      animating = false;
+    }, DURATION);
+  }
+
+  function goBackward(){
+    stage.classList.add('is-animating');
+    var k = stateIndex;
+    // RECHTER SLOT: die vorherige Seite (Index k-1) wächst wirklich wieder
+    // hervor (deckt die aktuelle Seite dabei einfach zu - die bleibt
+    // unangetastet im Hintergrund liegen, wie schon vorher).
+    var curR = rightPages[k];
+    var prevR = rightPages[k-1];
+    assignZ(rightPages, k-1, k);
+    prevR.classList.remove('text-hidden');
+    prevR.style.transform = 'scaleX(1)';
+
+    // LINKER SLOT: aktuelle Seite schrumpft, vorherige wächst gleichzeitig
+    // wieder auf - symmetrisch zur Vorwärts-Bewegung.
+    var curL = leftPages[k];
+    var prevL = leftPages[k-1];
+    assignZ(leftPages, k, k-1);
+    curL.classList.add('text-hidden');
+    prevL.classList.remove('text-hidden');
+    curL.style.transform = 'scaleX(0)';
+    prevL.style.transform = 'scaleX(1)';
+
+    setTimeout(function(){
+      curR.classList.remove('text-hidden');
+      curL.classList.remove('text-hidden');
+      stateIndex = k-1;
+      assignZ(leftPages, stateIndex, -1);
+      assignZ(rightPages, stateIndex, -1);
+      setDots(stateIndex);
+      updateInteractivity();
+      stage.classList.remove('is-animating');
+      animating = false;
+    }, DURATION);
+  }
+
+  function attach(pages){
+    pages.forEach(function(el){
+      if(!el.hasAttribute('data-side')) return; // ghost-Seiten sind nicht klickbar
+      el.addEventListener('click', function(){
+        if(animating) return;
+        var side = el.getAttribute('data-side');
+        if(side === 'right'){
+          if(stateIndex >= lastIndex) return; // schon auf der letzten Doppelseite
+          animating = true;
+          goForward();
+        } else {
+          if(stateIndex <= 0) return; // schon auf der ersten Seite
+          animating = true;
+          goBackward();
+        }
+      });
+    });
+  }
+
+  attach(leftPages);
+  attach(rightPages);
+  initSlots();
 })();
 </script>
 
