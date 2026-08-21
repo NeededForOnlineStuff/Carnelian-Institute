@@ -27,14 +27,18 @@
      Buch aussieht und sich nie in der Größe verändert. */
   .stage{
     position:relative;
-    height:min(44vw, 600px);
+    height:min(70vw, 460px);
     display:flex;
     align-items:stretch;
     gap:0;
+    transition: transform 0.45s cubic-bezier(.45,.05,.35,1);
   }
 
   /* Jeder Slot ist fest an seiner Position (links / rechts vom Spine) und
-     ändert nie seine Größe oder Position - nur die Seiten DARIN animieren. */
+     ändert nie seine Größe oder Position - nur die Seiten DARIN animieren.
+     aspect-ratio bestimmt das Format jeder einzelnen Seite: 3/4 = klassisches
+     Buchformat (höher als breit). Für quadratische Seiten hier einfach
+     wieder "1 / 1" eintragen. */
   .slot{
     position:relative;
     height:100%;
@@ -454,9 +458,29 @@
     stage.classList.toggle('show-spine', isRealSpread);
   }
 
+  // Bei der ersten (nur rechte Seite) und letzten (nur linke Seite) Ansicht
+  // soll die SICHTBARE Einzelseite mittig zentriert erscheinen, statt dass
+  // (wie bei Doppelseiten) der Spine in der Mitte steht. Dafür wird die
+  // gesamte Bühne um genau die halbe Breite von "leerer Slot + Spine"
+  // verschoben - bei Doppelseiten bleibt die Verschiebung bei 0.
+  function updateStageShift(idx){
+    var slotWidth = slotRight.getBoundingClientRect().width;
+    var spineWidth = document.querySelector('.spine').getBoundingClientRect().width;
+    var shift = (slotWidth + spineWidth) / 2;
+    if(idx === 0){
+      stage.style.transform = 'translateX(-' + shift + 'px)';
+    } else if(idx === lastIndex){
+      stage.style.transform = 'translateX(' + shift + 'px)';
+    } else {
+      stage.style.transform = 'translateX(0px)';
+    }
+  }
+  window.addEventListener('resize', function(){ updateStageShift(stateIndex); });
+
   // Ausgangszustand: nur A (Index 0) sichtbar, alles danach unsichtbar (scale 0),
   // alles davor gibt es nicht (Index -1 existiert nicht).
   function initSlots(){
+    stage.style.transition = 'none';
     leftPages.forEach(function(el, i){
       el.style.transition = 'none';
       el.style.transform = (i <= stateIndex) ? 'scaleX(1)' : 'scaleX(0)';
@@ -473,11 +497,15 @@
     assignZ(rightPages, stateIndex, -1);
     setDots(stateIndex);
     updateInteractivity();
+    updateStageShift(stateIndex);
+    stage.offsetHeight;
+    stage.style.transition = '';
   }
 
   function goForward(){
     stage.classList.add('is-animating');
     var k = stateIndex;
+    updateStageShift(k + 1);
     // RECHTER SLOT: aktuelle Seite (Index k) schrumpft wirklich weg und
     // gibt damit die bereits vorhandene, unveränderte nächste Seite
     // (Index k+1) frei - die war die ganze Zeit schon da.
@@ -514,6 +542,7 @@
   function goBackward(){
     stage.classList.add('is-animating');
     var k = stateIndex;
+    updateStageShift(k - 1);
     // RECHTER SLOT: die vorherige Seite (Index k-1) wächst wirklich wieder
     // hervor (deckt die aktuelle Seite dabei einfach zu - die bleibt
     // unangetastet im Hintergrund liegen, wie schon vorher).
